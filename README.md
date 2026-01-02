@@ -16,7 +16,7 @@ The system is designed for the Agentic Web, allowing both humans and AI agents t
 ### From Source
 Ensure Go 1.22 or higher is installed:
 ```bash
-go install github.com/x402/entropy@latest
+go install github.com/x402-Systems/entropy@latest
 ```
 
 ### From Binary
@@ -78,6 +78,12 @@ Extends the lease of an active node. Requires additional x402 settlement. Suppor
 
 ### rm [alias]
 Immediate teardown signal. Destroys the remote instance and wipes the local registry entry. Supports `--json`
+
+### options
+Queries the orchestrator for the live manifest of available resources. 
+Use this to see current pricing (which varies by region) and hardware specs before provisioning.
+Flags:
+- --json: Output the raw manifest as JSON (ideal for agents to calculate costs)
 
 ## THE TUI (INTERACTIVE TERMINAL)
 
