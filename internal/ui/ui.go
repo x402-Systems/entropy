@@ -48,7 +48,7 @@ type Model struct {
 
 func InitialModel(walletAddr string) Model {
 	columns := []table.Column{
-		{Title: "ALIAS", Width: 40},
+		{Title: "ALIAS", Width: 30},
 		{Title: "STATUS", Width: 10},
 		{Title: "IP_ADDR", Width: 16},
 		{Title: "TTL", Width: 12},
