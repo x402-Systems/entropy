@@ -17,8 +17,8 @@ var rmCmd = &cobra.Command{
 		alias := args[0]
 
 		var vm db.LocalVM
-		if err := db.DB.Where("alias = ?", alias).First(&vm).Error; err != nil {
-			fmt.Printf("❌ VM [%s] not found.\n", alias)
+		if err := db.DB.Where("alias = ? OR server_name = ?", alias, alias).First(&vm).Error; err != nil {
+			fmt.Printf("❌ VM [%s] not found in local registry.\n", alias)
 			return
 		}
 
@@ -31,18 +31,29 @@ var rmCmd = &cobra.Command{
 		params := url.Values{}
 		params.Add("vm_name", vm.ServerName)
 
-		fmt.Printf("🗑️ Sending teardown signal for %s...\n", alias)
+		if !outputJSON {
+			fmt.Printf("🗑️ Sending teardown signal for %s...\n", vm.Alias)
+		}
 
 		headers := map[string]string{"X-VM-NAME": vm.ServerName}
 		resp, err := client.DoRequest(cmd.Context(), "DELETE", "/provision?"+params.Encode(), nil, headers)
 		if err != nil || resp.StatusCode != 200 {
-			fmt.Println("❌ Teardown failed.")
+			fmt.Println("❌ Teardown failed. The server may have already reaped this instance.")
 			return
 		}
 
-		// Remove from local DB
-		db.DB.Delete(&vm)
-		fmt.Println("✅ VM destroyed and removed from registry.")
+		if err := db.DB.Delete(&vm).Error; err != nil {
+			if !outputJSON {
+				fmt.Printf("⚠️  VM destroyed on server but local DB update failed: %v\n", err)
+			}
+		}
+
+		if outputJSON {
+			fmt.Printf(`{"status": "success", "action": "destroy", "alias": "%s", "server_name": "%s"}`+"\n", vm.Alias, vm.ServerName)
+			return
+		}
+
+		fmt.Printf("✅ VM [%s] destroyed and removed from local registry.\n", vm.Alias)
 	},
 }
 

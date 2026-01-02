@@ -1,9 +1,11 @@
 package cmd
 
 import (
+	"encoding/json"
 	"entropy/internal/api"
 	"entropy/internal/db"
 	"fmt"
+	"io"
 	"net/url"
 
 	"github.com/spf13/cobra"
@@ -32,7 +34,9 @@ var renewCmd = &cobra.Command{
 		params.Add("vm_name", vm.ServerName)
 		params.Add("duration", duration)
 
-		fmt.Printf("⏳ Renewing %s for another %s...\n", alias, duration)
+		if !outputJSON {
+			fmt.Printf("⏳ Renewing %s for another %s...\n", alias, duration)
+		}
 
 		headers := map[string]string{"X-VM-NAME": vm.ServerName, "X-VM-DURATION": duration}
 		resp, err := client.DoRequest(cmd.Context(), "POST", "/renew?"+params.Encode(), nil, headers)
@@ -40,8 +44,29 @@ var renewCmd = &cobra.Command{
 			fmt.Println("❌ Renewal failed. Check balance or if VM is already reaped.")
 			return
 		}
+		defer resp.Body.Close()
 
-		fmt.Println("✅ Lease extended.")
+		body, _ := io.ReadAll(resp.Body)
+		var serverRes struct {
+			Status    string `json:"status"`
+			NewExpiry string `json:"new_expiry"`
+		}
+		json.Unmarshal(body, &serverRes)
+
+		if outputJSON {
+			res := map[string]interface{}{
+				"status":     "success",
+				"action":     "renew",
+				"alias":      alias,
+				"duration":   duration,
+				"new_expiry": serverRes.NewExpiry,
+			}
+			data, _ := json.MarshalIndent(res, "", "  ")
+			fmt.Println(string(data))
+			return
+		}
+
+		fmt.Printf("✅ Lease extended by %s. New expiry: %s\n", duration, serverRes.NewExpiry)
 	},
 }
 

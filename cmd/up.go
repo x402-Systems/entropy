@@ -119,6 +119,11 @@ var upCmd = &cobra.Command{
 			fmt.Printf("⚠️  VM provisioned but failed to save to local DB: %v\n", err)
 		}
 
+		if outputJSON {
+			data, _ := json.MarshalIndent(result, "", "  ")
+			fmt.Println(string(data))
+			return
+		}
 		// 7. Final Output
 		fmt.Println("\n✨ PROVISION_SUCCESSFUL")
 		fmt.Printf("ID:       %d\n", result.VM.ProviderID)

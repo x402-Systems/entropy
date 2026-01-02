@@ -57,6 +57,12 @@ var notifyCmd = &cobra.Command{
 			return
 		}
 
+		if outputJSON {
+			data, _ := json.MarshalIndent(result, "", "  ")
+			fmt.Println(string(data))
+			return
+		}
+
 		methodLower := strings.ToLower(notifMethod)
 		if methodLower == "telegram" {
 			fmt.Println("\n🤖 TELEGRAM_LINK_GENERATED")

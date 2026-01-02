@@ -43,6 +43,12 @@ var lsCmd = &cobra.Command{
 			}
 		}
 
+		if outputJSON {
+			data, _ := json.MarshalIndent(locals, "", "  ")
+			fmt.Println(string(data))
+			return
+		}
+
 		renderTable(locals, remotes)
 	},
 }

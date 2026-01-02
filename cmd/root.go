@@ -18,6 +18,8 @@ var (
 	userAccount    = "active-signer"
 )
 
+var outputJSON bool
+
 var rootCmd = &cobra.Command{
 	Use:   "entropy",
 	Short: "X402 Digital Entropy CLI // Anonymous Cloud Orchestrator",
@@ -40,8 +42,7 @@ func Execute() {
 
 func init() {
 	rootCmd.Version = config.Version
-	// Root flags can be added here
-	// Example: entropy --json ls
+	rootCmd.PersistentFlags().BoolVar(&outputJSON, "json", false, "Output response in raw JSON format")
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Enable verbose logging")
 }
 
