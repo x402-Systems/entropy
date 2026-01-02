@@ -40,6 +40,13 @@ Connect to the instance:
 entropy ssh dev-node
 ```
 
+## AGENT-NATIVE EXECUTION
+All commands support the `--json` flag. This suppresses terminal styling and returns a machine-readable object, allowing AI agents to pipe output into scripts or `jq`.
+
+```bash
+entropy ls --json | jq '.[0].IP'
+```
+
 ## COMMAND REFERENCE
 
 ### login
@@ -53,18 +60,24 @@ Flags:
 - --duration, -l: lease length (1h, 24h, 168h)
 - --key, -k: path to public SSH key (optional; system will generate one if omitted)
 - --alias, -a: local nickname for the instance
+- --json: Output raw JSON metadata
 
 ### ls
 Displays the fleet manifest. Synchronizes local SQLite metadata with remote orchestrator status to show ALIVE vs DEAD nodes and real-time TTL.
+Flags:
+- --json: Output full fleet metadata as a JSON array
 
 ### ssh [alias]
 Establishes a secure shell connection. Automatically handles identity files and bypasses known_hosts pollution for ephemeral IPs.
 
+### stats
+Queries the global orchestrator for current hardware capacity, system load, and network health. Supports `--json`.
+
 ### renew [alias]
-Extends the lease of an active node. Requires additional x402 settlement.
+Extends the lease of an active node. Requires additional x402 settlement. Supports `--json`
 
 ### rm [alias]
-Immediate teardown signal. Destroys the remote instance and wipes the local registry entry.
+Immediate teardown signal. Destroys the remote instance and wipes the local registry entry. Supports `--json`
 
 ## THE TUI (INTERACTIVE TERMINAL)
 
@@ -86,7 +99,9 @@ Private keys are never stored in this database. They are retrieved from the syst
 ## PROTOCOL
 
 Settlement Layer: Base Network (EIP155:8453 / 84532)
+
 Payment Scheme: x402 Exact
+
 Infrastructure Provider: Hetzner Cloud (Proxied)
 
 (c) 2026 X402_INFRASTRUCTURE // DISPOSABLE_CLOUD
