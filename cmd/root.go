@@ -1,0 +1,77 @@
+package cmd
+
+import (
+	"fmt"
+	"log"
+	"os"
+
+	"entropy/internal/config"
+	"entropy/internal/ui"
+
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/spf13/cobra"
+	"github.com/zalando/go-keyring"
+)
+
+var (
+	keyringService = "entropy-systems"
+	userAccount    = "active-signer"
+)
+
+var rootCmd = &cobra.Command{
+	Use:   "entropy",
+	Short: "X402 Digital Entropy CLI // Anonymous Cloud Orchestrator",
+	Long: `A brutalist CLI/TUI for managing ephemeral infrastructure.
+Standardized for x402 payment protocol on Base Network.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		if len(args) == 0 {
+			launchTUI()
+			return
+		}
+	},
+}
+
+func Execute() {
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+}
+
+func init() {
+	// Root flags can be added here
+	// Example: entropy --json ls
+	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Enable verbose logging")
+}
+
+func launchTUI() {
+	walletAddr, err := keyring.Get(config.KeyringService, userAccount+"-addr")
+	if err != nil {
+		walletAddr = "0xUNREGISTERED"
+	}
+
+	f, err := tea.LogToFile("entropy.log", "debug")
+	if err != nil {
+		fmt.Println("fatal:", err)
+		os.Exit(1)
+	}
+	defer f.Close()
+
+	m := ui.InitialModel(walletAddr)
+
+	p := tea.NewProgram(m, tea.WithAltScreen())
+	if _, err := p.Run(); err != nil {
+		log.Fatalf("TUI Error: %v", err)
+	}
+}
+
+func GetSecureKey() (string, error) {
+	return keyring.Get(keyringService, userAccount+"-key")
+}
+
+func SetSecureKey(address, privateKey string) error {
+	if err := keyring.Set(keyringService, userAccount+"-addr", address); err != nil {
+		return err
+	}
+	return keyring.Set(keyringService, userAccount+"-key", privateKey)
+}
