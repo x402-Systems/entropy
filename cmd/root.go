@@ -58,10 +58,17 @@ func launchTUI() {
 	defer f.Close()
 
 	m := ui.InitialModel(walletAddr)
-
 	p := tea.NewProgram(m, tea.WithAltScreen())
-	if _, err := p.Run(); err != nil {
-		log.Fatalf("TUI Error: %v", err)
+
+	finalModel, err := p.Run()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if m, ok := finalModel.(ui.Model); ok && m.SSHToRun != "" {
+		fmt.Printf("🔌 Dropping into SSH for: %s\n", m.SSHToRun)
+
+		sshCmd.Run(sshCmd, []string{m.SSHToRun})
 	}
 }
 

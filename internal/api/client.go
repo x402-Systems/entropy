@@ -20,6 +20,18 @@ type Client struct {
 	Address    string
 }
 
+type RemoteVM struct {
+	ProviderID    int64     `json:"ProviderID"`
+	IP            string    `json:"IP"`
+	ExpiresAt     time.Time `json:"ExpiresAt"`
+	TimeRemaining string    `json:"time_remaining"`
+}
+
+type ListResponse struct {
+	Count int        `json:"count"`
+	VMs   []RemoteVM `json:"vms"`
+}
+
 // NewClient initializes the x402 payment-wrapped HTTP client
 func NewClient() (*Client, error) {
 	privKey, err := keyring.Get(config.KeyringService, config.UserAccount+"-key")

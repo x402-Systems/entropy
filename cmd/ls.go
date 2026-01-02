@@ -6,25 +6,11 @@ import (
 	"entropy/internal/db"
 	"fmt"
 	"io"
-	"time"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/table"
 	"github.com/spf13/cobra"
 )
-
-// RemoteVM represents the JSON structure returned by the server /list endpoint
-type RemoteVM struct {
-	ProviderID    int64     `json:"ProviderID"`
-	IP            string    `json:"IP"`
-	ExpiresAt     time.Time `json:"ExpiresAt"`
-	TimeRemaining string    `json:"time_remaining"`
-}
-
-type ListResponse struct {
-	Count int        `json:"count"`
-	VMs   []RemoteVM `json:"vms"`
-}
 
 var lsCmd = &cobra.Command{
 	Use:   "ls",
@@ -43,14 +29,14 @@ var lsCmd = &cobra.Command{
 		fmt.Println("📡 Syncing with X402 Gateway...")
 		resp, err := client.DoRequest(cmd.Context(), "GET", "/list", nil, nil)
 
-		var remotes map[int64]RemoteVM
+		var remotes map[int64]api.RemoteVM
 		if err == nil {
 			defer resp.Body.Close()
 			body, _ := io.ReadAll(resp.Body)
 
-			var listResp ListResponse
+			var listResp api.ListResponse
 			if json.Unmarshal(body, &listResp) == nil {
-				remotes = make(map[int64]RemoteVM)
+				remotes = make(map[int64]api.RemoteVM)
 				for _, r := range listResp.VMs {
 					remotes[r.ProviderID] = r
 				}
@@ -61,7 +47,7 @@ var lsCmd = &cobra.Command{
 	},
 }
 
-func renderTable(locals []db.LocalVM, remotes map[int64]RemoteVM) {
+func renderTable(locals []db.LocalVM, remotes map[int64]api.RemoteVM) {
 	headerStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000")).Bold(true).Padding(0, 1)
 	borderStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#444444"))
 
