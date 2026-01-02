@@ -39,6 +39,7 @@ func Execute() {
 }
 
 func init() {
+	rootCmd.Version = config.Version
 	// Root flags can be added here
 	// Example: entropy --json ls
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Enable verbose logging")

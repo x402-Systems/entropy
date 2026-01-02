@@ -1,5 +1,7 @@
 package config
 
+var Version = "dev"
+
 const (
 	KeyringService = "entropy-systems"
 	UserAccount    = "active-signer"
