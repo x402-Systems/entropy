@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"entropy/internal/api"
+	"entropy/internal/config"
 	"entropy/internal/db"
 	"fmt"
 	"io"
@@ -223,7 +224,7 @@ func (m Model) View() string {
 		return "INITIALIZING_VIRTUAL_TERMINAL..."
 	}
 
-	header := headerStyle.Render("X402_SYSTEMS // AGENT_TERMINAL_V1.1")
+	header := headerStyle.Render(fmt.Sprintf("X402_SYSTEMS // AGENT_TERMINAL_%s", config.Version))
 	wallet := lipgloss.NewStyle().Foreground(grey).Render(" AUTH_WALLET: " + m.wallet)
 
 	tableBox := m.table.View()
