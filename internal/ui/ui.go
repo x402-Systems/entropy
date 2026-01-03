@@ -387,7 +387,12 @@ func (m Model) View() string {
 		)
 	}
 
-	footer := helpStyle.Render(fmt.Sprintf(" %dx%d • n: new node • ctrl+r: sync • s: ssh • d: delete • q: quit", m.width, m.height))
+	costWarning := lipgloss.NewStyle().Foreground(red).Render(" [!] AUTO-SYNC ACTIVE ($0.001/refresh)")
+
+	footer := lipgloss.JoinVertical(lipgloss.Left,
+		helpStyle.Render(fmt.Sprintf(" %dx%d • n: new node • ctrl+r: sync • s: ssh • d: delete • q: quit", m.width, m.height)),
+		costWarning,
+	)
 
 	return lipgloss.JoinVertical(lipgloss.Left,
 		header,

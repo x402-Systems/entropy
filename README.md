@@ -89,6 +89,14 @@ Flags:
 
 Running entropy without arguments launches the interactive dashboard.
 
+**⚠️ BILLING WARNING:** 
+The TUI maintains real-time synchronization with the X402 Orchestrator. 
+- **Auto-Sync:** The fleet status refreshes every 20 seconds.
+- **Cost:** Each refresh triggers a `$0.001` settlement via the x402 protocol.
+- **Idle Usage:** Leaving the TUI open will incur a cost of approximately `$0.18/hour`. 
+
+Close the terminal when not in active use to prevent unintended wallet depletion.
+
 Controls:
 - CTRL+R: Synchronize fleet status with orchestrator.
 - S: Select node and drop into SSH session.
