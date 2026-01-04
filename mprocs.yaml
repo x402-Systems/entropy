@@ -1,4 +1,4 @@
 procs:
-  api-server:
-    shell: "./server"
+  entroy-tui:
+    shell: "./entropy"
     autorestart: true
