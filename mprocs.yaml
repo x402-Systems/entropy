@@ -1,0 +1,4 @@
+procs:
+  api-server:
+    shell: "./server"
+    autorestart: true
