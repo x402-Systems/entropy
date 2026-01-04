@@ -99,6 +99,7 @@ Close the terminal when not in active use to prevent unintended wallet depletion
 
 Controls:
 - CTRL+R: Synchronize fleet status with orchestrator.
+- N: Provision a new node (opens the provisioning form).
 - S: Select node and drop into SSH session.
 - R: Renew selected node lease.
 - D: Terminate selected node.
