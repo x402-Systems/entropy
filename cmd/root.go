@@ -5,8 +5,8 @@ import (
 	"log"
 	"os"
 
-	"entropy/internal/config"
-	"entropy/internal/ui"
+	"github.com/x402-Systems/entropy/internal/config"
+	"github.com/x402-Systems/entropy/internal/ui"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"

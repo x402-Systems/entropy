@@ -1,4 +1,4 @@
-module entropy
+module github.com/x402-Systems/entropy
 
 go 1.25.3
 

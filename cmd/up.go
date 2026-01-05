@@ -2,9 +2,9 @@ package cmd
 
 import (
 	"encoding/json"
-	"entropy/internal/api"
-	"entropy/internal/db"
-	"entropy/internal/sshmgr"
+	"github.com/x402-Systems/entropy/internal/api"
+	"github.com/x402-Systems/entropy/internal/db"
+	"github.com/x402-Systems/entropy/internal/sshmgr"
 	"fmt"
 	"io"
 	"net/url"

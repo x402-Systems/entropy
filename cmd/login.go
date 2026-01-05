@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"entropy/internal/api"
+	"github.com/x402-Systems/entropy/internal/api"
 	"fmt"
 	//"os"
 	"strings"

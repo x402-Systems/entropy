@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"entropy/internal/db"
+	"github.com/x402-Systems/entropy/internal/db"
 	"fmt"
 	"os"
 	"os/exec"

@@ -1,8 +1,8 @@
 package main
 
 import (
-	"entropy/cmd"
-	"entropy/internal/db"
+	"github.com/x402-Systems/entropy/cmd"
+	"github.com/x402-Systems/entropy/internal/db"
 	"log"
 )
 

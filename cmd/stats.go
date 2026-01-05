@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"encoding/json"
-	"entropy/internal/config"
+	"github.com/x402-Systems/entropy/internal/config"
 	"fmt"
 	"io"
 	"net/http"

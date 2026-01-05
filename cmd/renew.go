@@ -2,8 +2,8 @@ package cmd
 
 import (
 	"encoding/json"
-	"entropy/internal/api"
-	"entropy/internal/db"
+	"github.com/x402-Systems/entropy/internal/api"
+	"github.com/x402-Systems/entropy/internal/db"
 	"fmt"
 	"io"
 	"net/url"
