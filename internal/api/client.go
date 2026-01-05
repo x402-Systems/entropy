@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"entropy/internal/config"
 	"fmt"
@@ -61,11 +62,30 @@ func NewClient() (*Client, error) {
 // DoRequest is a helper to perform requests with standard Entropy headers
 func (c *Client) DoRequest(ctx context.Context, method, path string, body io.Reader, headers map[string]string) (*http.Response, error) {
 	fullURL := config.BaseURL + path
-	req, err := http.NewRequestWithContext(ctx, method, fullURL, body)
-	if err != nil {
-		return nil, err
+
+	var req *http.Request
+	var err error
+
+	if body != nil {
+		bodyBytes, err := io.ReadAll(body)
+		if err != nil {
+			return nil, err
+		}
+		req, err = http.NewRequestWithContext(ctx, method, fullURL, bytes.NewReader(bodyBytes))
+		if err != nil {
+			return nil, err
+		}
+		req.GetBody = func() (io.ReadCloser, error) {
+			return io.NopCloser(bytes.NewReader(bodyBytes)), nil
+		}
+	} else {
+		req, err = http.NewRequestWithContext(ctx, method, fullURL, http.NoBody)
+		if err != nil {
+			return nil, err
+		}
 	}
 
+	req.Header.Set("User-Agent", "Entropy-CLI/1.0")
 	req.Header.Set("X-VM-PAYER", c.Address)
 
 	for k, v := range headers {

@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"bytes"
 	"encoding/json"
 	"entropy/internal/api"
 	"fmt"
@@ -27,18 +26,15 @@ var notifyCmd = &cobra.Command{
 			return
 		}
 
-		payload := map[string]string{
-			"method":     notifMethod,
-			"identifier": notifURL,
-		}
-		jsonBytes, _ := json.Marshal(payload)
-
 		fmt.Printf("📡 Requesting %s alerts for wallet %s...\n", notifMethod, client.Address)
 		fmt.Println("💰 This registration requires a $0.0001 anti-spam payment. Checking wallet...")
 
-		resp, err := client.DoRequest(cmd.Context(), "POST", "/notifications", bytes.NewReader(jsonBytes), map[string]string{
-			"Content-Type": "application/json",
-		})
+		headers := map[string]string{
+			"X-VM-NOTIF-METHOD": notifMethod,
+			"X-VM-NOTIF-ID":     notifURL,
+		}
+
+		resp, err := client.DoRequest(cmd.Context(), "POST", "/notifications", nil, headers)
 		if err != nil {
 			fmt.Printf("❌ Request failed: %v\n", err)
 			return
@@ -78,7 +74,6 @@ var notifyCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(notifyCmd)
 
-	// Flags
 	notifyCmd.Flags().StringVarP(&notifMethod, "method", "m", "telegram", "Notification method (telegram, webhook)")
 	notifyCmd.Flags().StringVarP(&notifURL, "id", "i", "", "Webhook URL (required if method is webhook)")
 }
