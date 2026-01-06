@@ -11,9 +11,9 @@ import (
 )
 
 var sshCmd = &cobra.Command{
-	Use:   "ssh [alias]",
-	Short: "Connect to a VM via SSH using its local alias",
-	Args:  cobra.ExactArgs(1),
+	Use:   "ssh [alias] [command...]",
+	Short: "Connect to a VM via SSH or execute a command",
+	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		aliasArg := args[0]
 
@@ -38,8 +38,6 @@ var sshCmd = &cobra.Command{
 			privateKeyPath = strings.TrimSuffix(privateKeyPath, ".pub")
 		}
 
-		fmt.Printf("🚀 Connecting to %s (%s) as root...\n", vm.Alias, vm.IP)
-
 		// 4. Build SSH Command
 		// Flags explained:
 		// -i: identity file
@@ -53,21 +51,34 @@ var sshCmd = &cobra.Command{
 			fmt.Sprintf("root@%s", vm.IP),
 		}
 
+		isInteractive := len(args) == 1
+		if !isInteractive {
+			command := strings.Join(args[1:], " ")
+			sshArgs = append(sshArgs, command)
+			fmt.Printf("🚀 Executing on %s: %s\n", vm.Alias, command)
+		} else {
+			fmt.Printf("🚀 Connecting to %s (%s) as root...\n", vm.Alias, vm.IP)
+		}
+
 		// 5. Execute SSH
-		// We use os.Exec to replace the current 'entropy' process with the 'ssh' process
-		// This ensures signals (Ctrl+C) and terminal resizing work perfectly.
 		c := exec.Command("ssh", sshArgs...)
-		c.Stdin = os.Stdin
+		if isInteractive {
+			// For interactive sessions, we connect the stdin to the user's terminal
+			c.Stdin = os.Stdin
+		}
 		c.Stdout = os.Stdout
 		c.Stderr = os.Stderr
 
 		err = c.Run()
 		if err != nil {
-			// Check if it's just a normal exit
+			// If it's a standard exit error, we'll just propagate the exit code.
+			// This is important for scripting, where a non-zero exit code from a remote command
+			// should terminate a script.
 			if exitError, ok := err.(*exec.ExitError); ok {
 				os.Exit(exitError.ExitCode())
 			}
-			fmt.Printf("❌ SSH session closed with error: %v\n", err)
+			// For other errors (e.g., command not found), print the error.
+			fmt.Printf("❌ SSH command failed: %v\n", err)
 		}
 	},
 }
