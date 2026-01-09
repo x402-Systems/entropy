@@ -2,10 +2,10 @@ package cmd
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/x402-Systems/entropy/internal/api"
 	"github.com/x402-Systems/entropy/internal/db"
 	"github.com/x402-Systems/entropy/internal/sshmgr"
-	"fmt"
 	"io"
 	"net/url"
 	"os"
@@ -42,7 +42,7 @@ var upCmd = &cobra.Command{
 	Short: "Provision a new ephemeral VM",
 	Long:  `Triggers an x402 payment and provisions a VM. Metadata is saved locally.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		client, err := api.NewClient()
+		client, err := api.NewClient(payMethod)
 		if err != nil {
 			fmt.Printf("❌ Auth Error: %v\n", err)
 			return
@@ -108,7 +108,7 @@ var upCmd = &cobra.Command{
 			Region:      result.VM.Region,
 			ExpiresAt:   result.VM.ExpiresAt,
 			SSHKeyPath:  sshKey,
-			OwnerWallet: client.Address,
+			OwnerWallet: client.PayerID,
 		}
 
 		if localVM.Alias == "" {

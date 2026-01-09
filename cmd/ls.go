@@ -2,9 +2,9 @@ package cmd
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/x402-Systems/entropy/internal/api"
 	"github.com/x402-Systems/entropy/internal/db"
-	"fmt"
 	"io"
 
 	"github.com/charmbracelet/lipgloss"
@@ -19,7 +19,7 @@ var lsCmd = &cobra.Command{
 		var locals []db.LocalVM
 		db.DB.Order("expires_at desc").Find(&locals)
 
-		client, err := api.NewClient()
+		client, err := api.NewClient(payMethod)
 		if err != nil {
 			fmt.Printf("⚠️  Offline Mode: %v\n", err)
 			renderTable(locals, nil)

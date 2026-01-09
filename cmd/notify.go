@@ -2,8 +2,8 @@ package cmd
 
 import (
 	"encoding/json"
-	"github.com/x402-Systems/entropy/internal/api"
 	"fmt"
+	"github.com/x402-Systems/entropy/internal/api"
 	"io"
 	"strings"
 
@@ -20,13 +20,13 @@ var notifyCmd = &cobra.Command{
 	Short: "Configure VM expiry alerts (Telegram or Webhook)",
 	Long:  `Sets your notification preferences. For Telegram, the system will provide a magic link to link your account.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		client, err := api.NewClient()
+		client, err := api.NewClient(payMethod)
 		if err != nil {
 			fmt.Printf("❌ Auth Error: %v\n", err)
 			return
 		}
 
-		fmt.Printf("📡 Requesting %s alerts for wallet %s...\n", notifMethod, client.Address)
+		fmt.Printf("📡 Requesting %s alerts for wallet %s...\n", notifMethod, client.PayerID)
 		fmt.Println("💰 This registration requires a $0.0001 anti-spam payment. Checking wallet...")
 
 		headers := map[string]string{

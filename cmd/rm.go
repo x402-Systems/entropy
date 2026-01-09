@@ -1,9 +1,9 @@
 package cmd
 
 import (
+	"fmt"
 	"github.com/x402-Systems/entropy/internal/api"
 	"github.com/x402-Systems/entropy/internal/db"
-	"fmt"
 	"net/url"
 
 	"github.com/spf13/cobra"
@@ -22,7 +22,7 @@ var rmCmd = &cobra.Command{
 			return
 		}
 
-		client, err := api.NewClient()
+		client, err := api.NewClient(payMethod)
 		if err != nil {
 			fmt.Println(err)
 			return

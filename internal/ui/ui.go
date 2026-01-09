@@ -3,16 +3,17 @@ package ui
 import (
 	"context"
 	"encoding/json"
-	"github.com/x402-Systems/entropy/internal/api"
-	"github.com/x402-Systems/entropy/internal/config"
-	"github.com/x402-Systems/entropy/internal/db"
-	"github.com/x402-Systems/entropy/internal/sshmgr"
 	"fmt"
 	"io"
 	"net/url"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/x402-Systems/entropy/internal/api"
+	"github.com/x402-Systems/entropy/internal/config"
+	"github.com/x402-Systems/entropy/internal/db"
+	"github.com/x402-Systems/entropy/internal/sshmgr"
 
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -27,13 +28,11 @@ const (
 	stateProvisioning
 )
 
-// Message types
 type syncMsg struct {
 	rows    []table.Row
 	remotes map[int64]api.RemoteVM
 }
 type tickMsg time.Time
-type errMsg error
 type statusMsg string
 type provisionResultMsg struct {
 	err error
@@ -48,7 +47,6 @@ var (
 	headerStyle = lipgloss.NewStyle().Foreground(white).Background(red).Padding(0, 1).Bold(true).Italic(true)
 	borderStyle = lipgloss.NewStyle().Border(lipgloss.NormalBorder(), false, false, false, true).BorderLeftForeground(red).PaddingLeft(2)
 	helpStyle   = lipgloss.NewStyle().Foreground(grey)
-	inputStyle  = lipgloss.NewStyle().Foreground(red)
 )
 
 type Model struct {
@@ -66,7 +64,6 @@ type Model struct {
 }
 
 func InitialModel(walletAddr string) Model {
-	// Table Setup
 	columns := []table.Column{
 		{Title: "ALIAS", Width: 30},
 		{Title: "STATUS", Width: 10},
@@ -80,23 +77,27 @@ func InitialModel(walletAddr string) Model {
 	s.Selected = s.Selected.Foreground(white).Background(red).Bold(true)
 	t.SetStyles(s)
 
-	// Inputs Setup (for Provisioning)
-	inputs := make([]textinput.Model, 4)
+	// Inputs Setup: Added 5th input for Payment Method
+	inputs := make([]textinput.Model, 5)
 	inputs[0] = textinput.New()
 	inputs[0].Placeholder = "alias (e.g. web-prod)"
 	inputs[0].Focus()
 
 	inputs[1] = textinput.New()
-	inputs[1].Placeholder = "tier (eco-small, std-med)"
+	inputs[1].Placeholder = "tier (eco-small, pro)"
 	inputs[1].SetValue("eco-small")
 
 	inputs[2] = textinput.New()
-	inputs[2].Placeholder = "region (nbg1, hel1, ash)"
+	inputs[2].Placeholder = "region (nbg1, ash)"
 	inputs[2].SetValue("nbg1")
 
 	inputs[3] = textinput.New()
 	inputs[3].Placeholder = "duration (1h, 24h)"
 	inputs[3].SetValue("1h")
+
+	inputs[4] = textinput.New()
+	inputs[4].Placeholder = "payment (usdc, xmr)"
+	inputs[4].SetValue("usdc")
 
 	return Model{
 		state:    stateList,
@@ -109,10 +110,10 @@ func InitialModel(walletAddr string) Model {
 	}
 }
 
-// Command: Run the provisioning logic (Ported from up.go)
-func provisionVM(alias, tier, region, duration string) tea.Cmd {
+func provisionVM(alias, tier, region, duration, payMethod string) tea.Cmd {
 	return func() tea.Msg {
-		client, err := api.NewClient()
+		// NewClient now takes the payment preference from the form
+		client, err := api.NewClient(payMethod)
 		if err != nil {
 			return provisionResultMsg{err: err}
 		}
@@ -135,6 +136,8 @@ func provisionVM(alias, tier, region, duration string) tea.Cmd {
 			"X-VM-REGION":   region,
 		}
 
+		// client.DoRequest will now handle the 402 Payment Required
+		// loop automatically using the correct wallet (EVM or Monero)
 		resp, err := client.DoRequest(context.Background(), "POST", "/provision?"+params.Encode(), nil, headers)
 		if err != nil {
 			return provisionResultMsg{err: err}
@@ -142,7 +145,8 @@ func provisionVM(alias, tier, region, duration string) tea.Cmd {
 		defer resp.Body.Close()
 
 		if resp.StatusCode != 200 {
-			return provisionResultMsg{err: fmt.Errorf("server returned %d", resp.StatusCode)}
+			body, _ := io.ReadAll(resp.Body)
+			return provisionResultMsg{err: fmt.Errorf("server: %s", string(body))}
 		}
 
 		var res struct {
@@ -157,7 +161,6 @@ func provisionVM(alias, tier, region, duration string) tea.Cmd {
 		}
 		json.NewDecoder(resp.Body).Decode(&res)
 
-		// Save to local DB
 		db.DB.Create(&db.LocalVM{
 			ProviderID:  res.VM.ProviderID,
 			ServerName:  res.VM.Name,
@@ -167,7 +170,7 @@ func provisionVM(alias, tier, region, duration string) tea.Cmd {
 			Region:      res.VM.Region,
 			ExpiresAt:   res.VM.ExpiresAt,
 			SSHKeyPath:  sshPath,
-			OwnerWallet: client.Address,
+			OwnerWallet: client.PayerID, // Using the deterministic ID
 		})
 
 		return provisionResultMsg{err: nil}
@@ -178,9 +181,10 @@ func syncData() tea.Msg {
 	var locals []db.LocalVM
 	db.DB.Order("expires_at desc").Find(&locals)
 
-	client, err := api.NewClient()
+	// Sync uses the default client (usually USDC preference)
+	client, err := api.NewClient("usdc")
 	if err != nil {
-		return errMsg(err)
+		return provisionResultMsg{err: err}
 	}
 
 	resp, err := client.DoRequest(context.Background(), "GET", "/list", nil, nil)
@@ -206,7 +210,6 @@ func syncData() tea.Msg {
 				ttl = remaining.String()
 			}
 		}
-
 		rows = append(rows, table.Row{l.Alias, statusText, l.IP, ttl, l.Region})
 	}
 	return syncMsg{rows: rows, remotes: remotes}
@@ -227,7 +230,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		m.table.SetHeight(m.height - 12)
+		m.table.SetHeight(m.height - 14)
 
 	case syncMsg:
 		m.remotes = msg.remotes
@@ -237,7 +240,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tickMsg:
 		if m.state == stateList {
-			if time.Since(m.lastSync) > 20*time.Second {
+			if time.Since(m.lastSync) > 30*time.Second {
 				return m, tea.Batch(doTick(), syncData)
 			}
 		}
@@ -246,7 +249,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case provisionResultMsg:
 		m.state = stateList
 		if msg.err != nil {
-			m.status = "PROVISION_ERROR: " + msg.err.Error()
+			m.status = "ERROR: " + msg.err.Error()
 		} else {
 			m.status = "PROVISION_SUCCESS"
 		}
@@ -259,8 +262,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.state = stateList
 				return m, nil
 			case "tab", "shift+tab", "up", "down":
-				s := msg.String()
-				if s == "up" || s == "shift+tab" {
+				if msg.String() == "up" || msg.String() == "shift+tab" {
 					m.focusIdx--
 				} else {
 					m.focusIdx++
@@ -271,36 +273,34 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.focusIdx = len(m.inputs) - 1
 				}
 				cmds := make([]tea.Cmd, len(m.inputs))
-				for i := 0; i <= len(m.inputs)-1; i++ {
+				for i := range m.inputs {
 					if i == m.focusIdx {
 						cmds[i] = m.inputs[i].Focus()
-						continue
+					} else {
+						m.inputs[i].Blur()
 					}
-					m.inputs[i].Blur()
 				}
 				return m, tea.Batch(cmds...)
 			case "enter":
-				m.status = "PROVISIONING_X402_NODE..."
-				pCmd := provisionVM(
+				m.status = "X402_NEGOTIATING_PAYMENT..."
+				return m, provisionVM(
 					m.inputs[0].Value(),
 					m.inputs[1].Value(),
 					m.inputs[2].Value(),
 					m.inputs[3].Value(),
+					m.inputs[4].Value(), // Payment method choice
 				)
-				return m, pCmd
 			}
-			// Handle text input updates
 			for i := range m.inputs {
 				m.inputs[i], cmd = m.inputs[i].Update(msg)
 			}
 			return m, cmd
 		}
 
-		// Table View Keybindings
 		switch msg.String() {
 		case "q", "ctrl+c":
 			return m, tea.Quit
-		case "n": // NEW VM
+		case "n":
 			m.state = stateProvisioning
 			return m, nil
 		case "ctrl+r":
@@ -320,14 +320,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, func() tea.Msg {
 					var vm db.LocalVM
 					if err := db.DB.Where("alias = ?", alias).First(&vm).Error; err == nil {
-						client, _ := api.NewClient()
+						client, _ := api.NewClient("usdc")
 						params := url.Values{}
 						params.Add("vm_name", vm.ServerName)
 						client.DoRequest(context.Background(), "DELETE", "/provision?"+params.Encode(), nil, nil)
 						db.DB.Delete(&vm)
 						return statusMsg("DESTROYED_" + alias)
 					}
-					return statusMsg("VM_NOT_FOUND")
+					return statusMsg("NOT_FOUND")
 				}
 			}
 		}
@@ -343,25 +343,24 @@ func (m Model) View() string {
 	}
 
 	header := headerStyle.Render(fmt.Sprintf("X402_SYSTEMS // AGENT_TERMINAL_%s", config.Version))
-	wallet := lipgloss.NewStyle().Foreground(grey).Render(" AUTH_WALLET: " + m.wallet)
+	wallet := lipgloss.NewStyle().Foreground(grey).Render(" AUTH_ID: " + m.wallet)
 
 	var mainContent string
-
 	if m.state == stateProvisioning {
-		// Provisioning Form View
 		form := lipgloss.JoinVertical(lipgloss.Left,
 			lipgloss.NewStyle().Foreground(red).Bold(true).Render("\n[ PROVISION_NEW_NODE ]"),
 			"",
-			"Alias:", m.inputs[0].View(),
-			"Tier:", m.inputs[1].View(),
-			"Region:", m.inputs[2].View(),
-			"Duration:", m.inputs[3].View(),
+			"Alias:    ", m.inputs[0].View(),
+			"Tier:     ", m.inputs[1].View(),
+			"Region:   ", m.inputs[2].View(),
+			"Duration: ", m.inputs[3].View(),
+			"Payment:  ", m.inputs[4].View(),
 			"",
 			helpStyle.Render("enter: confirm • esc: cancel • tab: navigate"),
+			lipgloss.NewStyle().Foreground(grey).Italic(true).Render("\nNote: XMR verification may take up to 2 minutes."),
 		)
 		mainContent = lipgloss.NewStyle().Padding(1, 4).Render(form)
 	} else {
-		// Table View
 		tableBox := m.table.View()
 		currRow := m.table.SelectedRow()
 		var details string
@@ -380,18 +379,15 @@ func (m Model) View() string {
 				lipgloss.NewStyle().Foreground(grey).Render("MGMT:          ")+lipgloss.NewStyle().Foreground(red).Render(m.status),
 			)
 		}
-
 		mainContent = lipgloss.JoinHorizontal(lipgloss.Top,
 			tableBox,
 			lipgloss.NewStyle().PaddingLeft(2).Width(40).Render(borderStyle.Render(details)),
 		)
 	}
 
-	costWarning := lipgloss.NewStyle().Foreground(red).Render(" [!] AUTO-SYNC ACTIVE ($0.001/refresh)")
-
 	footer := lipgloss.JoinVertical(lipgloss.Left,
 		helpStyle.Render(fmt.Sprintf(" %dx%d • n: new node • ctrl+r: sync • s: ssh • d: delete • q: quit", m.width, m.height)),
-		costWarning,
+		lipgloss.NewStyle().Foreground(red).Render(" [!] AUTO-SYNC ACTIVE ($0.001/refresh)"),
 	)
 
 	return lipgloss.JoinVertical(lipgloss.Left,

@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/x402-Systems/entropy/internal/api"
 	"github.com/x402-Systems/entropy/internal/config"
 	"github.com/x402-Systems/entropy/internal/ui"
 
@@ -16,6 +17,7 @@ import (
 var (
 	keyringService = "entropy-systems"
 	userAccount    = "active-signer"
+	payMethod      string
 )
 
 var outputJSON bool
@@ -44,12 +46,17 @@ func init() {
 	rootCmd.Version = config.Version
 	rootCmd.PersistentFlags().BoolVar(&outputJSON, "json", false, "Output response in raw JSON format")
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Enable verbose logging")
+	rootCmd.PersistentFlags().StringVarP(&payMethod, "pay", "p", "usdc", "Payment method (usdc or xmr)")
 }
 
 func launchTUI() {
 	walletAddr, err := keyring.Get(config.KeyringService, userAccount+"-addr")
 	if err != nil {
-		walletAddr = "0xUNREGISTERED"
+		if xmrAddr, err := keyring.Get(config.KeyringService, config.UserAccount+"-xmr-addr"); err == nil {
+			walletAddr = api.DeriveMoneroID(xmrAddr)
+		} else {
+			walletAddr = "0xUNREGISTERED"
+		}
 	}
 
 	f, err := tea.LogToFile("entropy.log", "debug")

@@ -3,11 +3,13 @@ package api
 import (
 	"bytes"
 	"context"
-	"github.com/x402-Systems/entropy/internal/config"
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
+
+	"github.com/x402-Systems/entropy/internal/config"
 
 	x402 "github.com/coinbase/x402/go"
 	x402http "github.com/coinbase/x402/go/http"
@@ -18,7 +20,7 @@ import (
 
 type Client struct {
 	HTTPClient *http.Client
-	Address    string
+	PayerID    string
 }
 
 type RemoteVM struct {
@@ -34,19 +36,49 @@ type ListResponse struct {
 }
 
 // NewClient initializes the x402 payment-wrapped HTTP client
-func NewClient() (*Client, error) {
-	privKey, err := keyring.Get(config.KeyringService, config.UserAccount+"-key")
-	if err != nil {
-		return nil, fmt.Errorf("wallet not linked: run 'entropy login' first")
+func NewClient(preference string) (*Client, error) {
+	selector := func(reqs []x402.PaymentRequirementsView) x402.PaymentRequirementsView {
+		for _, r := range reqs {
+			net := strings.ToLower(string(r.GetNetwork()))
+			if preference == "xmr" && strings.Contains(net, "monero") {
+				return r
+			}
+			if preference == "usdc" && strings.Contains(net, "eip155") {
+				return r
+			}
+		}
+		return x402.DefaultPaymentSelector(reqs)
 	}
 
-	signer, err := evmsigners.NewClientSignerFromPrivateKey(privKey)
-	if err != nil {
-		return nil, fmt.Errorf("invalid private key in keyring: %v", err)
+	clientCore := x402.Newx402Client(x402.WithPaymentSelector(selector))
+	var finalPayerID string
+
+	// 1. Check for EVM Identity
+	if privKey, err := keyring.Get(config.KeyringService, config.UserAccount+"-key"); err == nil {
+		signer, _ := evmsigners.NewClientSignerFromPrivateKey(privKey)
+		clientCore.Register("eip155:*", evm.NewExactEvmScheme(signer))
+		finalPayerID = signer.Address()
 	}
 
-	clientCore := x402.Newx402Client()
-	clientCore.Register("eip155:*", evm.NewExactEvmScheme(signer))
+	// 2. Check for Monero Identity
+	// We'll store the primary address in the keyring during 'entropy login xmr'
+	if xmrAddr, err := keyring.Get(config.KeyringService, config.UserAccount+"-xmr-addr"); err == nil {
+		rpcURL, _ := keyring.Get(config.KeyringService, config.UserAccount+"-xmr-rpc")
+		if rpcURL == "" {
+			rpcURL = config.DefaultMoneroRPC
+		}
+
+		clientCore.Register("monero:*", &MoneroClientScheme{RPCURL: rpcURL})
+
+		// If we don't have an EVM address, use the derived Monero ID
+		if finalPayerID == "" {
+			finalPayerID = DeriveMoneroID(xmrAddr)
+		}
+	}
+
+	if finalPayerID == "" {
+		return nil, fmt.Errorf("no identity linked: run 'entropy login' first")
+	}
 
 	wrappedClient := x402http.WrapHTTPClientWithPayment(
 		&http.Client{Timeout: 150 * time.Second},
@@ -55,7 +87,7 @@ func NewClient() (*Client, error) {
 
 	return &Client{
 		HTTPClient: wrappedClient,
-		Address:    signer.Address(),
+		PayerID:    finalPayerID,
 	}, nil
 }
 
@@ -86,7 +118,7 @@ func (c *Client) DoRequest(ctx context.Context, method, path string, body io.Rea
 	}
 
 	req.Header.Set("User-Agent", "Entropy-CLI/1.0")
-	req.Header.Set("X-VM-PAYER", c.Address)
+	req.Header.Set("X-VM-PAYER", c.PayerID)
 
 	for k, v := range headers {
 		req.Header.Set(k, v)

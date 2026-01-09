@@ -1,6 +1,8 @@
 package api
 
 import (
+	"crypto/sha256"
+	"fmt"
 	evmsigners "github.com/coinbase/x402/go/signers/evm"
 )
 
@@ -11,4 +13,12 @@ func DeriveAddress(hexPrivKey string) (string, error) {
 		return "", err
 	}
 	return signer.Address(), nil
+}
+
+// DeriveMoneroID creates a stable identity string from a Monero address.
+// We hash it so the primary address isn't leaked in plaintext headers.
+func DeriveMoneroID(address string) string {
+	h := sha256.New()
+	h.Write([]byte("entropy-v1-" + address))
+	return fmt.Sprintf("xmr-%x", h.Sum(nil))
 }

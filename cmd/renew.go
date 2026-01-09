@@ -2,9 +2,9 @@ package cmd
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/x402-Systems/entropy/internal/api"
 	"github.com/x402-Systems/entropy/internal/db"
-	"fmt"
 	"io"
 	"net/url"
 
@@ -24,7 +24,7 @@ var renewCmd = &cobra.Command{
 			return
 		}
 
-		client, err := api.NewClient()
+		client, err := api.NewClient(payMethod)
 		if err != nil {
 			fmt.Println(err)
 			return
