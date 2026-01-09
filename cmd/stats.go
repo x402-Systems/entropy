@@ -2,8 +2,8 @@ package cmd
 
 import (
 	"encoding/json"
-	"github.com/x402-Systems/entropy/internal/config"
 	"fmt"
+	"github.com/x402-Systems/entropy/internal/config"
 	"io"
 	"net/http"
 
@@ -14,7 +14,9 @@ var statsCmd = &cobra.Command{
 	Use:   "stats",
 	Short: "Check global orchestrator health and capacity",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Printf("📡 Querying %s...\n", config.BaseURL)
+		if !outputJSON {
+			fmt.Printf("📡 Querying %s...\n", config.BaseURL)
+		}
 
 		resp, err := http.Get(config.BaseURL + "/stats")
 		if err != nil {

@@ -76,8 +76,10 @@ var upCmd = &cobra.Command{
 		params.Add("duration", duration)
 		params.Add("ssh_key", finalSSHKey)
 
-		fmt.Printf("📡 Initializing provisioning for %s tier (%s)...\n", tier, duration)
-		fmt.Println("💰 This request requires an x402 payment. Checking wallet...")
+		if !outputJSON {
+			fmt.Printf("📡 Initializing provisioning for %s tier (%s)...\n", tier, duration)
+			fmt.Println("💰 This request requires an x402 payment. Checking wallet...")
+		}
 
 		path := fmt.Sprintf("/provision?%s", params.Encode())
 		resp, err := client.DoRequest(cmd.Context(), "POST", path, nil, headers)

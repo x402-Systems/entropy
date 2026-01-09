@@ -26,7 +26,9 @@ var lsCmd = &cobra.Command{
 			return
 		}
 
-		fmt.Println("📡 Syncing with X402 Gateway...")
+		if !outputJSON {
+			fmt.Println("📡 Syncing with X402 Gateway...")
+		}
 		resp, err := client.DoRequest(cmd.Context(), "GET", "/list", nil, nil)
 
 		var remotes map[int64]api.RemoteVM
