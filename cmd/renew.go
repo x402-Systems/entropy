@@ -79,4 +79,5 @@ var renewCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(renewCmd)
+	renewCmd.Flags().StringVarP(&duration, "duration", "l", "1h", "Renewal duration (e.g., 1h, 24h, 168h)")
 }
