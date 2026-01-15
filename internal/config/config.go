@@ -1,6 +1,6 @@
 package config
 
-var Version = "v1.2.6"
+var Version = "v1.2.7"
 
 const (
 	KeyringService = "entropy-systems"
