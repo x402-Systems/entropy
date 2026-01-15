@@ -13,7 +13,7 @@ import (
 
 var renewCmd = &cobra.Command{
 	Use:   "renew [alias]",
-	Short: "Extend the lease of an active VM",
+	Short: "Extend the lease of an active (or suspended) VM",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		alias := args[0]
@@ -50,6 +50,7 @@ var renewCmd = &cobra.Command{
 		var serverRes struct {
 			Status    string `json:"status"`
 			NewExpiry string `json:"new_expiry"`
+			Message   string `json:"message"`
 		}
 		json.Unmarshal(body, &serverRes)
 
@@ -60,13 +61,19 @@ var renewCmd = &cobra.Command{
 				"alias":      alias,
 				"duration":   duration,
 				"new_expiry": serverRes.NewExpiry,
+				"message":    serverRes.Message,
 			}
 			data, _ := json.MarshalIndent(res, "", "  ")
 			fmt.Println(string(data))
 			return
 		}
 
-		fmt.Printf("✅ Lease extended by %s. New expiry: %s\n", duration, serverRes.NewExpiry)
+		displayMsg := "Lease extended."
+		if serverRes.Message != "" {
+			displayMsg = serverRes.Message
+		}
+
+		fmt.Printf("✅ %s\n   New expiry: %s\n", displayMsg, serverRes.NewExpiry)
 	},
 }
 

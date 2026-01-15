@@ -25,6 +25,7 @@ type Client struct {
 
 type RemoteVM struct {
 	ProviderID    int64     `json:"ProviderID"`
+	Status        string    `json:"Status"`
 	IP            string    `json:"IP"`
 	ExpiresAt     time.Time `json:"ExpiresAt"`
 	TimeRemaining string    `json:"time_remaining"`

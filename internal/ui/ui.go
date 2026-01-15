@@ -39,10 +39,11 @@ type provisionResultMsg struct {
 }
 
 var (
-	red   = lipgloss.Color("#FF0000")
-	green = lipgloss.Color("#00FF00")
-	grey  = lipgloss.Color("#444444")
-	white = lipgloss.Color("#FFFFFF")
+	red    = lipgloss.Color("#FF0000")
+	green  = lipgloss.Color("#00FF00")
+	yellow = lipgloss.Color("#F1C40F")
+	grey   = lipgloss.Color("#444444")
+	white  = lipgloss.Color("#FFFFFF")
 
 	headerStyle = lipgloss.NewStyle().Foreground(white).Background(red).Padding(0, 1).Bold(true).Italic(true)
 	borderStyle = lipgloss.NewStyle().Border(lipgloss.NormalBorder(), false, false, false, true).BorderLeftForeground(red).PaddingLeft(2)
@@ -65,10 +66,10 @@ type Model struct {
 
 func InitialModel(walletAddr string) Model {
 	columns := []table.Column{
-		{Title: "ALIAS", Width: 30},
+		{Title: "ALIAS", Width: 25},
 		{Title: "STATUS", Width: 10},
 		{Title: "IP_ADDR", Width: 16},
-		{Title: "TTL", Width: 12},
+		{Title: "TTL", Width: 15}, // Widened slightly
 		{Title: "REGION", Width: 8},
 	}
 	t := table.New(table.WithColumns(columns), table.WithFocused(true))
@@ -77,7 +78,6 @@ func InitialModel(walletAddr string) Model {
 	s.Selected = s.Selected.Foreground(white).Background(red).Bold(true)
 	t.SetStyles(s)
 
-	// Inputs Setup: Added 5th input for Payment Method
 	inputs := make([]textinput.Model, 5)
 	inputs[0] = textinput.New()
 	inputs[0].Placeholder = "alias (e.g. web-prod)"
@@ -112,7 +112,6 @@ func InitialModel(walletAddr string) Model {
 
 func provisionVM(alias, tier, region, duration, payMethod string) tea.Cmd {
 	return func() tea.Msg {
-		// NewClient now takes the payment preference from the form
 		client, err := api.NewClient(payMethod)
 		if err != nil {
 			return provisionResultMsg{err: err}
@@ -136,8 +135,6 @@ func provisionVM(alias, tier, region, duration, payMethod string) tea.Cmd {
 			"X-VM-REGION":   region,
 		}
 
-		// client.DoRequest will now handle the 402 Payment Required
-		// loop automatically using the correct wallet (EVM or Monero)
 		resp, err := client.DoRequest(context.Background(), "POST", "/provision?"+params.Encode(), nil, headers)
 		if err != nil {
 			return provisionResultMsg{err: err}
@@ -170,7 +167,7 @@ func provisionVM(alias, tier, region, duration, payMethod string) tea.Cmd {
 			Region:      res.VM.Region,
 			ExpiresAt:   res.VM.ExpiresAt,
 			SSHKeyPath:  sshPath,
-			OwnerWallet: client.PayerID, // Using the deterministic ID
+			OwnerWallet: client.PayerID,
 		})
 
 		return provisionResultMsg{err: nil}
@@ -181,7 +178,6 @@ func syncData() tea.Msg {
 	var locals []db.LocalVM
 	db.DB.Order("expires_at desc").Find(&locals)
 
-	// Sync uses the default client (usually USDC preference)
 	client, err := api.NewClient("usdc")
 	if err != nil {
 		return provisionResultMsg{err: err}
@@ -203,11 +199,18 @@ func syncData() tea.Msg {
 	for _, l := range locals {
 		statusText := "DEAD"
 		ttl := "0s"
+
 		if r, ok := remotes[l.ProviderID]; ok {
-			statusText = "ALIVE"
-			remaining := time.Until(r.ExpiresAt).Round(time.Second)
-			if remaining > 0 {
-				ttl = remaining.String()
+			// Check Status from server
+			if r.Status == "suspended" {
+				statusText = "PAUSED"
+				ttl = "GRACE PERIOD"
+			} else {
+				statusText = "ALIVE"
+				remaining := time.Until(r.ExpiresAt).Round(time.Second)
+				if remaining > 0 {
+					ttl = remaining.String()
+				}
 			}
 		}
 		rows = append(rows, table.Row{l.Alias, statusText, l.IP, ttl, l.Region})
@@ -288,7 +291,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.inputs[1].Value(),
 					m.inputs[2].Value(),
 					m.inputs[3].Value(),
-					m.inputs[4].Value(), // Payment method choice
+					m.inputs[4].Value(),
 				)
 			}
 			for i := range m.inputs {
@@ -308,9 +311,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, syncData
 		case "s":
 			curr := m.table.SelectedRow()
-			if len(curr) > 0 {
+			if len(curr) > 0 && curr[1] == "ALIVE" {
 				m.SSHToRun = curr[0]
 				return m, tea.Quit
+			} else if len(curr) > 0 && curr[1] == "PAUSED" {
+				m.status = "VM_IS_PAUSED_RENEW_TO_ACCESS"
 			}
 		case "d":
 			curr := m.table.SelectedRow()
@@ -365,10 +370,17 @@ func (m Model) View() string {
 		currRow := m.table.SelectedRow()
 		var details string
 		if len(currRow) > 0 {
+			// Color Logic for Status
 			stColor := grey
+			hintText := ""
+
 			if currRow[1] == "ALIVE" {
 				stColor = green
+			} else if currRow[1] == "PAUSED" {
+				stColor = yellow
+				hintText = lipgloss.NewStyle().Foreground(yellow).Render("\n⚠ VM IS SUSPENDED\nRun 'entropy renew " + currRow[0] + "' to restore.")
 			}
+
 			details = lipgloss.JoinVertical(lipgloss.Left,
 				lipgloss.NewStyle().Foreground(grey).Render("NODE_ALIAS:    ")+lipgloss.NewStyle().Foreground(white).Render(currRow[0]),
 				lipgloss.NewStyle().Foreground(grey).Render("CURRENT_IP:    ")+lipgloss.NewStyle().Foreground(white).Render(currRow[2]),
@@ -377,6 +389,7 @@ func (m Model) View() string {
 				"",
 				lipgloss.NewStyle().Foreground(grey).Render("STATUS:        ")+lipgloss.NewStyle().Foreground(stColor).Bold(true).Render(currRow[1]),
 				lipgloss.NewStyle().Foreground(grey).Render("MGMT:          ")+lipgloss.NewStyle().Foreground(red).Render(m.status),
+				hintText,
 			)
 		}
 		mainContent = lipgloss.JoinHorizontal(lipgloss.Top,
