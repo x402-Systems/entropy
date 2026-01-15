@@ -81,6 +81,16 @@ var upCmd = &cobra.Command{
 			fmt.Println("💰 This request requires an x402 payment. Checking wallet...")
 		}
 
+		validateResp, err := client.DoRequest(cmd.Context(), "POST", "/validate", nil, headers)
+		if err == nil {
+			defer validateResp.Body.Close()
+			if validateResp.StatusCode == 403 {
+				body, _ := io.ReadAll(validateResp.Body)
+				fmt.Printf("❌ Eligibility check failed: %s\n", string(body))
+				return
+			}
+		}
+
 		path := fmt.Sprintf("/provision?%s", params.Encode())
 		resp, err := client.DoRequest(cmd.Context(), "POST", path, nil, headers)
 		if err != nil {
