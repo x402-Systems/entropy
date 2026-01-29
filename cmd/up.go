@@ -154,7 +154,7 @@ func init() {
 	upCmd.Flags().StringVarP(&tier, "tier", "t", "eco-small", "Hardware tier")
 	upCmd.Flags().StringVarP(&distro, "distro", "d", "ubuntu-24.04", "OS Distro")
 	upCmd.Flags().StringVarP(&region, "region", "r", "nbg1", "Region")
-	upCmd.Flags().StringVarP(&duration, "duration", "l", "1h", "Lease duration")
+	upCmd.Flags().StringVarP(&duration, "duration", "l", "1h", "Lease duration (e.g., 1h, 24h, 7d) ")
 	upCmd.Flags().StringVarP(&sshKey, "key", "k", "", "Path to public SSH key")
 	upCmd.Flags().StringVarP(&alias, "alias", "a", "", "Local nickname")
 }

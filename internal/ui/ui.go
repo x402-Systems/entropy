@@ -92,7 +92,7 @@ func InitialModel(walletAddr string) Model {
 	inputs[2].SetValue("nbg1")
 
 	inputs[3] = textinput.New()
-	inputs[3].Placeholder = "duration (1h, 24h)"
+	inputs[3].Placeholder = "duration (1h, 24h, 7d)"
 	inputs[3].SetValue("1h")
 
 	inputs[4] = textinput.New()
